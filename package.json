@@ -10,14 +10,21 @@
   },
   "dependencies": {
     "@portabletext/react": "^5.0.0",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-slot": "^1.2.4",
     "@sanity/image-url": "^1.2.0",
     "@sanity/vision": "^4.13.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.575.0",
     "next": "16.0.1",
     "next-sanity": "^11.6.4",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "sanity": "^4.13.0",
-    "styled-components": "^6.1.19"
+    "styled-components": "^6.1.19",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
