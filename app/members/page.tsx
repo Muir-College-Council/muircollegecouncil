@@ -28,7 +28,7 @@ export default async function MembersPage() {
                 <div className="relative h-20 w-20 overflow-hidden rounded-full border">
                   {o.headshot?.asset ? (
                     <Image
-                      src={urlForImage(o.headshot).width(256).height(256).fit("crop").url()}
+                      src={urlFor(o.headshot).width(256).height(256).fit("crop").url()}
                       alt={o.name}
                       fill
                       className="object-cover"

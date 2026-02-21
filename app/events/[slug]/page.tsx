@@ -43,7 +43,7 @@ export default async function EventDetailPage({ params }: Props) {
         {event.heroImage?.asset && (
           <div className="relative h-56 w-full overflow-hidden rounded-lg border sm:h-72">
             <Image
-              src={urlForImage(event.heroImage).width(1600).height(900).fit("crop").url()}
+              src={urlFor(event.heroImage).width(1600).height(900).fit("crop").url()}
               alt={event.title}
               fill
               className="object-cover"
