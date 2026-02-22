@@ -4,6 +4,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Muir College Council",
   description: "The official student government body for Muir College at UC San Diego.",
+  icons: {
+    icon: "/mcc-logo.jpg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

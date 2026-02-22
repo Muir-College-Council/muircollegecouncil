@@ -1,9 +1,10 @@
-import { Instagram, Mail, MapPin, Leaf } from 'lucide-react';
+import Image from 'next/image';
+import { Instagram, Mail, MapPin } from 'lucide-react';
 
 const quickLinks = [
   { label: 'Request Funding', href: '#funding' },
   { label: 'Agendas & Minutes', href: '#meetings' },
-  { label: 'Constitution', href: '#constitution' },
+  { label: 'Constitution', href: 'https://docs.google.com/document/d/1yW7dROyhdATU06eI6A5ebajDA1D8zssMhTnNUco4FDs/edit?tab=t.0#heading=h.qy6f6ljkjb7h' },
   { label: 'Accessibility & Resources', href: '#resources' },
 ];
 
@@ -53,8 +54,8 @@ export function Footer() {
           {/* About */}
           <div>
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
-                <Leaf className="text-[#AED581]" size={24} />
+              <div className="w-12 h-12 flex items-center justify-center">
+                <Image src="/mcc-logo.jpg" alt="Muir College Council Logo" width={48} height={48} className="rounded-full object-cover" />
               </div>
               <span className="font-semibold text-lg">Muir College Council</span>
             </div>
@@ -69,7 +70,11 @@ export function Footer() {
             <ul className="space-y-2">
               {quickLinks.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href} className="text-green-100/80 hover:text-[#AED581] text-sm transition-colors inline-block">
+                  <a
+                    href={link.href}
+                    className="text-green-100/80 hover:text-[#AED581] text-sm transition-colors inline-block"
+                    {...(link.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  >
                     {link.label}
                   </a>
                 </li>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { Hero } from '@/components/Hero';
@@ -8,8 +9,8 @@ import { EventCard } from '@/components/EventCard';
 import { MemberCard } from '@/components/MemberCard';
 import { Footer } from '@/components/Footer';
 import {
-  DollarSign, FileText, Calendar, Users, BookOpen,
-  Sparkles, Target, MessageCircle, Trees, Sprout, ChevronRight,
+  DollarSign, FileText, Calendar, Users,
+  Sparkles, Target, MessageCircle, Trees, Sprout, ChevronRight, ChevronLeft, Leaf,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -94,7 +95,86 @@ const councilMembers = [
   { name: 'Julian Gonzales', role: 'VP Student Orgs' },
   { name: 'Alexander Testman', role: 'VP Marketing' },
   { name: 'Rachel Alarcon & Katie E. Johnson', role: 'Muir College AS Senators' },
+  { name: 'TBD', role: 'Director of Events' },
+  { name: 'TBD', role: 'Director of Outreach' },
+  { name: 'TBD', role: 'Director of Communications' },
+  { name: 'TBD', role: 'Director of Sustainability' },
+  { name: 'TBD', role: 'Director of Diversity & Inclusion' },
+  { name: 'TBD', role: 'Director of Academic Affairs' },
+  { name: 'TBD', role: 'Director of Health & Wellness' },
+  { name: 'TBD', role: 'Senator' },
+  { name: 'TBD', role: 'Senator' },
+  { name: 'TBD', role: 'Senator' },
+  { name: 'TBD', role: 'Senator' },
+  { name: 'TBD', role: 'Director of Community Relations' },
+  { name: 'TBD', role: 'Director of Social Media' },
+  { name: 'TBD', role: 'Director of First-Year Experience' },
+  { name: 'TBD', role: 'Director of Alumni Relations' },
+  { name: 'TBD', role: 'Director of Spirit & Culture' },
+  { name: 'TBD', role: 'Director of Philanthropy' },
+  { name: 'TBD', role: 'Director of Technology' },
 ];
+
+const MEMBERS_PER_PAGE_DESKTOP = 9;
+const MEMBERS_PER_PAGE_MOBILE = 6;
+
+function usePerPage() {
+  const [perPage, setPerPage] = useState(MEMBERS_PER_PAGE_DESKTOP);
+  useEffect(() => {
+    const update = () => setPerPage(window.innerWidth >= 1024 ? MEMBERS_PER_PAGE_DESKTOP : MEMBERS_PER_PAGE_MOBILE);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return perPage;
+}
+
+function MembersCarousel() {
+  const [page, setPage] = useState(0);
+  const perPage = usePerPage();
+  const totalPages = Math.ceil(councilMembers.length / perPage);
+  const clampedPage = Math.min(page, totalPages - 1);
+  const start = clampedPage * perPage;
+  const visible = councilMembers.slice(start, start + perPage);
+
+  return (
+    <div className="mb-12">
+      <h3 className="text-center text-[#5D4A2F] mb-8">Council Members</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[420px]">
+        {visible.map((member, index) => (
+          <MemberCard key={start + index} {...member} />
+        ))}
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 mt-8">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={clampedPage === 0}
+            className="w-10 h-10 rounded-full border-2 border-[#7CB342] flex items-center justify-center text-[#7CB342] hover:bg-[#7CB342] hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <div className="flex gap-2">
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i)}
+                className={`w-2.5 h-2.5 rounded-full transition-colors ${i === clampedPage ? 'bg-[#7CB342]' : 'bg-gray-300 hover:bg-[#AED581]'}`}
+              />
+            ))}
+          </div>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={clampedPage === totalPages - 1}
+            className="w-10 h-10 rounded-full border-2 border-[#7CB342] flex items-center justify-center text-[#7CB342] hover:bg-[#7CB342] hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -181,9 +261,7 @@ export default function HomePage() {
           <div className="max-w-3xl mx-auto">
             <div className="text-center mb-12">
               <div className="flex justify-center mb-4">
-                <svg width="40" height="40" viewBox="0 0 100 100" fill="currentColor" className="text-[#AED581]">
-                  <path d="M50,10 Q80,30 80,60 Q80,90 50,90 Q50,60 50,10 Z" />
-                </svg>
+                <Leaf className="text-[#AED581]" size={40} />
               </div>
               <h2 className="mb-4">Meetings & Governance</h2>
               <p className="text-green-100">
@@ -229,8 +307,8 @@ export default function HomePage() {
                     <p className="mb-4">
                       Read the governing documents that outline MCC&#39;s structure, responsibilities, and procedures.
                     </p>
-                    <Button variant="outline" className="bg-white/10 text-white border-white/30 hover:bg-white/20 rounded-xl">
-                      View Documents
+                    <Button variant="outline" className="bg-white/10 text-white border-white/30 hover:bg-white/20 rounded-xl" asChild>
+                      <a href="https://docs.google.com/document/d/1yW7dROyhdATU06eI6A5ebajDA1D8zssMhTnNUco4FDs/edit?tab=t.0#heading=h.qy6f6ljkjb7h" target="_blank" rel="noopener noreferrer">View Documents</a>
                     </Button>
                   </AccordionContent>
                 </AccordionItem>
@@ -273,14 +351,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="mb-12">
-            <h3 className="text-center text-[#5D4A2F] mb-8">Council Members</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {councilMembers.map((member, index) => (
-                <MemberCard key={index} {...member} />
-              ))}
-            </div>
-          </div>
+          <MembersCarousel />
         </div>
       </section>
 
