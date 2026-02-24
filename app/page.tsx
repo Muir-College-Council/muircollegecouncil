@@ -383,7 +383,7 @@ export default function HomePage() {
                 </div>
                 <h4 className="text-[#5D4A2F] mb-2">Run for Council</h4>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Elections are held each spring. Join MCC and represent your fellow Muir students.
+                  Applications open in the Fall! Prepare to join MCC and represent your fellow Muir students.
                 </p>
               </div>
 
@@ -410,7 +410,7 @@ export default function HomePage() {
 
             <div className="text-center">
               <Button size="lg" className="bg-[#2C5530] text-white hover:bg-[#1A3A1F] rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 text-lg px-10 py-6">
-                See Open Roles & Applications
+                Roles Open Fall 2026
               </Button>
             </div>
           </div>
