@@ -22,10 +22,10 @@ import {
 
 const actionCards = [
   {
-    icon: DollarSign,
-    title: 'Apply for Funding',
-    description: 'Submit your funding request for student organization events and initiatives.',
-    href: '#funding',
+    icon: Calendar,
+    title: 'Upcoming Events',
+    description: 'Browse upcoming MCC events, meetings, and community gatherings.',
+    href: '#events',
     iconColor: '#2C5530',
     iconBgColor: '#E8F5E1',
   },
@@ -38,10 +38,10 @@ const actionCards = [
     iconBgColor: '#E8F5E1',
   },
   {
-    icon: Calendar,
-    title: 'Upcoming Events',
-    description: 'Browse upcoming MCC events, meetings, and community gatherings.',
-    href: '#events',
+    icon: DollarSign,
+    title: 'Apply for Funding',
+    description: 'Submit your funding request for student organization events and initiatives.',
+    href: '#funding',
     iconColor: '#2C5530',
     iconBgColor: '#E8F5E1',
   },
