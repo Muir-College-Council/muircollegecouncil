@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { EventCard } from '@/components/EventCard';
@@ -14,117 +14,131 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const allEvents = [
-  {
-    title: 'MCC General Meeting',
-    date: 'Friday, December 13, 2024',
-    time: '5:00 PM - 6:30 PM',
-    location: 'Muir College Room 201',
-    description: 'Join us for our bi-weekly general meeting to discuss upcoming initiatives and vote on funding requests.',
-    tag: 'Council Meeting',
-    tagColor: 'green' as const,
-    category: 'meeting',
-    month: 'december',
-  },
-  {
-    title: 'Winter Wonderland Social',
-    date: 'Tuesday, December 17, 2024',
-    time: '6:00 PM - 8:00 PM',
-    location: 'Muir Quad',
-    description: 'Celebrate the end of fall quarter with food, music, and festive activities. Free for all Muir students!',
-    tag: 'Social',
-    tagColor: 'green' as const,
-    category: 'social',
-    month: 'december',
-  },
-  {
-    title: 'Leadership Workshop',
-    date: 'Monday, January 8, 2025',
-    time: '4:00 PM - 5:30 PM',
-    location: 'Virtual (Zoom)',
-    description: 'Learn about leadership opportunities within MCC and how to get involved in student government.',
-    tag: 'Workshop',
-    tagColor: 'green' as const,
-    category: 'workshop',
-    month: 'january',
-  },
-  {
-    title: 'Budget Town Hall',
-    date: 'Wednesday, January 15, 2025',
-    time: '5:30 PM - 7:00 PM',
-    location: 'Muir College Room 201',
-    description: 'Have your say in how MCC allocates funds for winter quarter. Open forum for all Muir students.',
-    tag: 'Council Meeting',
-    tagColor: 'green' as const,
-    category: 'meeting',
-    month: 'january',
-  },
-  {
-    title: 'Triton Talks: Career Panel',
-    date: 'Thursday, January 23, 2025',
-    time: '6:00 PM - 7:30 PM',
-    location: 'Muir College Room 105',
-    description: 'Connect with Muir alumni working in various industries and get career insights and advice.',
-    tag: 'Workshop',
-    tagColor: 'green' as const,
-    category: 'workshop',
-    month: 'january',
-  },
-  {
-    title: 'Study Break Treats',
-    date: 'Monday, February 3, 2025',
-    time: '8:00 PM - 10:00 PM',
-    location: 'Muir Quad',
-    description: 'Take a break from midterms with free snacks, music, and stress-relief activities.',
-    tag: 'Social',
-    tagColor: 'green' as const,
-    category: 'social',
-    month: 'february',
-  },
-  {
-    title: 'MCC General Meeting',
-    date: 'Friday, February 7, 2025',
-    time: '5:00 PM - 6:30 PM',
-    location: 'Muir College Room 201',
-    description: 'Regular meeting to discuss ongoing projects and new funding requests for student organizations.',
-    tag: 'Council Meeting',
-    tagColor: 'green' as const,
-    category: 'meeting',
-    month: 'february',
-  },
-  {
-    title: 'Sustainability Fair',
-    date: 'Saturday, February 15, 2025',
-    time: '11:00 AM - 3:00 PM',
-    location: 'Muir Quad',
-    description: 'Learn about sustainability initiatives on campus and how you can get involved in environmental advocacy.',
-    tag: 'Social',
-    tagColor: 'green' as const,
-    category: 'social',
-    month: 'february',
-  },
-  {
-    title: 'Volunteer Day: Beach Cleanup',
-    date: 'Sunday, February 23, 2025',
-    time: '9:00 AM - 12:00 PM',
-    location: 'La Jolla Shores',
-    description: 'Join MCC for a community service day cleaning up our local beaches. Transportation provided.',
-    tag: 'Social',
-    tagColor: 'green' as const,
-    category: 'social',
-    month: 'february',
-  },
-];
+type GCalCategory = 'meeting' | 'social' | 'workshop' | 'other';
+
+type GCalEvent = {
+  id: string;
+  title: string;
+  startIso: string;
+  endIso: string;
+  allDay: boolean;
+  startDateOnly: string | null;
+  endDateOnly: string | null;
+  location: string | null;
+  calendarUrl: string | null;
+  description: string | null;
+  category: 'COUNCIL_MEETING' | 'SOCIAL' | 'WORKSHOP' | 'OTHER';
+  flyerUrls: string[];
+};
+
+const DISPLAY_TIME_ZONE = 'America/Los_Angeles';
+
+function toMonthKey(d: Date) {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function monthLabel(d: Date) {
+  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(d);
+}
+
+function dateFromDateOnly(dateOnly: string) {
+  return new Date(`${dateOnly}T12:00:00Z`);
+}
+
+function formatEventDate(e: GCalEvent) {
+  const date = e.allDay && e.startDateOnly ? dateFromDateOnly(e.startDateOnly) : new Date(e.startIso);
+  const tz = e.allDay ? 'UTC' : DISPLAY_TIME_ZONE;
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: tz }).format(date);
+}
+
+function formatEventTime(e: GCalEvent) {
+  if (e.allDay) return 'All day';
+  const start = new Date(e.startIso);
+  const end = new Date(e.endIso);
+  const fmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: DISPLAY_TIME_ZONE });
+  return `${fmt.format(start)} - ${fmt.format(end)}`;
+}
+
+function mapCategory(c: GCalEvent['category']): { category: GCalCategory; tag: string; tagColor: 'green' | 'blue' | 'orange' } {
+  if (c === 'COUNCIL_MEETING') return { category: 'meeting', tag: 'Council Meeting', tagColor: 'orange' };
+  if (c === 'WORKSHOP') return { category: 'workshop', tag: 'Workshop', tagColor: 'blue' };
+  if (c === 'SOCIAL') return { category: 'social', tag: 'Social', tagColor: 'green' };
+  return { category: 'other', tag: 'Event', tagColor: 'green' };
+}
 
 export function EventsPage() {
   const [filterType, setFilterType] = useState<string>('all');
   const [filterDate, setFilterDate] = useState<string>('all');
 
-  const filteredEvents = allEvents.filter((event) => {
-    const matchesType = filterType === 'all' || event.category === filterType;
-    const matchesDate = filterDate === 'all' || event.month === filterDate;
-    return matchesType && matchesDate;
-  });
+  const [events, setEvents] = useState<GCalEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/gcal/events', { headers: { Accept: 'application/json' } });
+        const data = (await res.json()) as { events?: GCalEvent[]; error?: string };
+        if (!res.ok) throw new Error(data.error || 'Failed to load events.');
+        if (!cancelled) setEvents(Array.isArray(data.events) ? data.events : []);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load events.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const eventCards = useMemo(() => {
+    return events.map((e) => {
+      const { category, tag, tagColor } = mapCategory(e.category);
+      const desc = e.description?.trim() || 'Details coming soon.';
+      const date = formatEventDate(e);
+      const time = formatEventTime(e);
+      const location = e.location || (e.allDay ? 'UC San Diego' : 'TBA');
+      const monthKey = toMonthKey(e.allDay && e.startDateOnly ? dateFromDateOnly(e.startDateOnly) : new Date(e.startIso));
+      const monthDate = new Date(`${monthKey}-01T12:00:00Z`);
+      return {
+        id: e.id,
+        title: e.title,
+        date,
+        time,
+        location,
+        description: desc,
+        tag,
+        tagColor,
+        category,
+        monthKey,
+        monthLabel: monthLabel(monthDate),
+        href: e.calendarUrl || undefined,
+        flyerUrls: e.flyerUrls,
+      };
+    });
+  }, [events]);
+
+  const monthOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of eventCards) map.set(e.monthKey, e.monthLabel);
+    return Array.from(map.entries())
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([value, label]) => ({ value, label }));
+  }, [eventCards]);
+
+  const filteredEvents = useMemo(() => {
+    return eventCards.filter((event) => {
+      const matchesType = filterType === 'all' || event.category === filterType;
+      const matchesDate = filterDate === 'all' || event.monthKey === filterDate;
+      return matchesType && matchesDate;
+    });
+  }, [eventCards, filterDate, filterType]);
 
   const clearFilters = () => {
     setFilterType('all');
@@ -211,9 +225,11 @@ export function EventsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Months</SelectItem>
-                  <SelectItem value="december">December 2024</SelectItem>
-                  <SelectItem value="january">January 2025</SelectItem>
-                  <SelectItem value="february">February 2025</SelectItem>
+                  {monthOptions.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -234,14 +250,23 @@ export function EventsPage() {
       {/* Events Grid */}
       <section className="py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {filteredEvents.length > 0 ? (
+          {loading ? (
+            <p className="text-gray-600">Loading events…</p>
+          ) : error ? (
+            <div className="text-center py-16">
+              <p className="text-gray-500 mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()} className="bg-[#5A6F5C] text-white hover:bg-[#3F4F41]">
+                Retry
+              </Button>
+            </div>
+          ) : filteredEvents.length > 0 ? (
             <>
               <p className="text-gray-600 mb-8">
                 Showing {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredEvents.map((event, index) => (
-                  <EventCard key={index} {...event} />
+                  <EventCard key={event.id || index} {...event} />
                 ))}
               </div>
             </>

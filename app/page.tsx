@@ -55,7 +55,7 @@ const actionCards = [
   },
 ];
 
-const events = [
+const fallbackEvents = [
   {
     title: 'MCC General Meeting',
     date: 'Friday, December 13, 2024',
@@ -84,6 +84,48 @@ const events = [
     tagColor: 'green' as const,
   },
 ];
+
+type GCalEvent = {
+  id: string;
+  title: string;
+  startIso: string;
+  endIso: string;
+  allDay: boolean;
+  startDateOnly: string | null;
+  endDateOnly: string | null;
+  location: string | null;
+  calendarUrl: string | null;
+  description: string | null;
+  category: 'COUNCIL_MEETING' | 'SOCIAL' | 'WORKSHOP' | 'OTHER';
+  flyerUrls: string[];
+};
+
+const DISPLAY_TIME_ZONE = 'America/Los_Angeles';
+
+function dateFromDateOnly(dateOnly: string) {
+  return new Date(`${dateOnly}T12:00:00Z`);
+}
+
+function formatEventDate(e: GCalEvent) {
+  const date = e.allDay && e.startDateOnly ? dateFromDateOnly(e.startDateOnly) : new Date(e.startIso);
+  const tz = e.allDay ? 'UTC' : DISPLAY_TIME_ZONE;
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: tz }).format(date);
+}
+
+function formatEventTime(e: GCalEvent) {
+  if (e.allDay) return 'All day';
+  const start = new Date(e.startIso);
+  const end = new Date(e.endIso);
+  const fmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: DISPLAY_TIME_ZONE });
+  return `${fmt.format(start)} - ${fmt.format(end)}`;
+}
+
+function mapCategory(c: GCalEvent['category']): { tag: string; tagColor: 'green' | 'blue' | 'orange' } {
+  if (c === 'COUNCIL_MEETING') return { tag: 'Council Meeting', tagColor: 'orange' };
+  if (c === 'WORKSHOP') return { tag: 'Workshop', tagColor: 'blue' };
+  if (c === 'SOCIAL') return { tag: 'Social', tagColor: 'green' };
+  return { tag: 'Event', tagColor: 'green' };
+}
 
 const councilMembers = [
   { name: 'Luke Pederson', role: 'President' },
@@ -187,6 +229,40 @@ function MembersCarousel() {
 }
 
 export default function HomePage() {
+  const [events, setEvents] = useState(fallbackEvents);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/gcal/events', { headers: { Accept: 'application/json' } });
+        const data = (await res.json()) as { events?: GCalEvent[] };
+        if (!res.ok) return;
+        const fetched = Array.isArray(data.events) ? data.events : [];
+        const mapped = fetched.slice(0, 3).map((e) => {
+          const { tag, tagColor } = mapCategory(e.category);
+          return {
+            title: e.title,
+            date: formatEventDate(e),
+            time: formatEventTime(e),
+            location: e.location || (e.allDay ? 'UC San Diego' : 'TBA'),
+            description: e.description?.trim() || 'Details coming soon.',
+            tag,
+            tagColor,
+            href: e.calendarUrl || undefined,
+            flyerUrls: e.flyerUrls,
+          };
+        });
+        if (!cancelled && mapped.length > 0) setEvents(mapped);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#FDFBF7]">
       <Header />

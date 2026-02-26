@@ -8,6 +8,8 @@ interface EventCardProps {
   description: string;
   tag: string;
   tagColor: 'green' | 'blue' | 'orange';
+  href?: string;
+  flyerUrls?: string[];
 }
 
 const tagColorMap = {
@@ -16,7 +18,10 @@ const tagColorMap = {
   orange: 'bg-orange-100 text-orange-800',
 };
 
-export function EventCard({ title, date, time, location, description, tag, tagColor }: EventCardProps) {
+export function EventCard({ title, date, time, location, description, tag, tagColor, href, flyerUrls }: EventCardProps) {
+  const flyerCount = flyerUrls?.length ?? 0;
+  const firstFlyerUrl = flyerUrls?.[0];
+
   return (
     <div className="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-200 border border-gray-100 hover:border-[#C4A574] hover:-translate-y-1 flex flex-col">
       <div className="flex items-start justify-between mb-3">
@@ -27,7 +32,7 @@ export function EventCard({ title, date, time, location, description, tag, tagCo
       </div>
 
       <h4 className="text-[#5D4A2F] mb-3">{title}</h4>
-      <p className="text-sm text-gray-600 leading-relaxed mb-4 flex-1">{description}</p>
+      <p className="text-sm text-gray-600 leading-relaxed mb-4 flex-1 whitespace-pre-line">{description}</p>
 
       <div className="space-y-2 text-sm text-gray-500 pt-4 border-t border-gray-100">
         <div className="flex items-center gap-2">
@@ -43,6 +48,31 @@ export function EventCard({ title, date, time, location, description, tag, tagCo
           <span>{location}</span>
         </div>
       </div>
+
+      {(href || firstFlyerUrl) && (
+        <div className="mt-4 flex flex-wrap gap-3">
+          {href && (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-[#2C5530] hover:text-[#1A3A1F] underline underline-offset-2"
+            >
+              View on Calendar
+            </a>
+          )}
+          {firstFlyerUrl && (
+            <a
+              href={firstFlyerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-[#2C5530] hover:text-[#1A3A1F] underline underline-offset-2"
+            >
+              {flyerCount > 1 ? `View Flyers (${flyerCount})` : 'View Flyer'}
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }
