@@ -55,7 +55,19 @@ const actionCards = [
   },
 ];
 
-const fallbackEvents = [
+type HomeEventCard = {
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  description: string;
+  tag: string;
+  tagColor: 'green' | 'blue' | 'orange';
+  href?: string;
+  flyerUrls?: string[];
+};
+
+const fallbackEvents: HomeEventCard[] = [
   {
     title: 'MCC General Meeting',
     date: 'Friday, December 13, 2024',
@@ -63,7 +75,7 @@ const fallbackEvents = [
     location: 'Muir College Room 201',
     description: 'Join us for our bi-weekly general meeting to discuss upcoming initiatives and vote on funding requests.',
     tag: 'Council Meeting',
-    tagColor: 'green' as const,
+    tagColor: 'green',
   },
   {
     title: 'Winter Wonderland Social',
@@ -72,7 +84,7 @@ const fallbackEvents = [
     location: 'Muir Quad',
     description: 'Celebrate the end of fall quarter with food, music, and festive activities. Free for all Muir students!',
     tag: 'Social',
-    tagColor: 'green' as const,
+    tagColor: 'green',
   },
   {
     title: 'Leadership Workshop',
@@ -81,7 +93,7 @@ const fallbackEvents = [
     location: 'Virtual (Zoom)',
     description: 'Learn about leadership opportunities within MCC and how to get involved in student government.',
     tag: 'Workshop',
-    tagColor: 'green' as const,
+    tagColor: 'green',
   },
 ];
 
@@ -229,7 +241,7 @@ function MembersCarousel() {
 }
 
 export default function HomePage() {
-  const [events, setEvents] = useState(fallbackEvents);
+  const [events, setEvents] = useState<HomeEventCard[]>(fallbackEvents);
 
   useEffect(() => {
     let cancelled = false;
@@ -239,7 +251,7 @@ export default function HomePage() {
         const data = (await res.json()) as { events?: GCalEvent[] };
         if (!res.ok) return;
         const fetched = Array.isArray(data.events) ? data.events : [];
-        const mapped = fetched.slice(0, 3).map((e) => {
+        const mapped: HomeEventCard[] = fetched.slice(0, 3).map((e) => {
           const { tag, tagColor } = mapCategory(e.category);
           return {
             title: e.title,
