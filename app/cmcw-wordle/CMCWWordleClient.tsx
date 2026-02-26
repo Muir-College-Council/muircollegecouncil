@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   CMCW_WORDLE_END_DATE,
@@ -60,15 +60,6 @@ function betterLetterState(prev: TileState | undefined, next: TileState): TileSt
   return prev;
 }
 
-function tileClasses(state: TileState | null) {
-  const base =
-    'w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-lg border text-lg font-semibold select-none';
-  if (!state) return `${base} bg-white border-[#E8E6E1] text-[#5D4A2F]`;
-  if (state === 'correct') return `${base} bg-[#7CB342] border-[#7CB342] text-white`;
-  if (state === 'present') return `${base} bg-[#D6B85A] border-[#D6B85A] text-white`;
-  return `${base} bg-[#9CA3AF] border-[#9CA3AF] text-white`;
-}
-
 function emojiFor(state: TileState) {
   if (state === 'correct') return '🟩';
   if (state === 'present') return '🟨';
@@ -77,23 +68,68 @@ function emojiFor(state: TileState) {
 
 type GameState = 'playing' | 'won' | 'lost';
 
+function tileFaceClasses(state: TileState | null) {
+  const base = 'wordle-tile-face flex items-center justify-center rounded-lg border text-lg font-semibold select-none';
+  if (!state) return `${base} bg-white border-[#E8E6E1] text-[#5D4A2F]`;
+  if (state === 'correct') return `${base} bg-[#7CB342] border-[#7CB342] text-white`;
+  if (state === 'present') return `${base} bg-[#D6B85A] border-[#D6B85A] text-white`;
+  return `${base} bg-[#9CA3AF] border-[#9CA3AF] text-white`;
+}
+
 function normalizeGuess(value: string) {
   return value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5);
 }
 
-function loadSaved(storageKey: string) {
+type SavedSnapshot = { guesses: string[]; state: GameState };
+
+function parseSavedRaw(raw: string | null): SavedSnapshot {
+  if (!raw) return { guesses: [], state: 'playing' };
   try {
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return null;
     const parsed = JSON.parse(raw) as { guesses?: unknown; state?: unknown };
     const guesses = Array.isArray(parsed.guesses)
-      ? parsed.guesses.filter((g): g is string => typeof g === 'string').map(normalizeGuess).filter((g) => g.length === 5)
+      ? parsed.guesses
+          .filter((g): g is string => typeof g === 'string')
+          .map(normalizeGuess)
+          .filter((g) => g.length === 5)
+          .slice(0, 6)
       : [];
     const state: GameState = parsed.state === 'won' || parsed.state === 'lost' ? parsed.state : 'playing';
-    return { guesses: guesses.slice(0, 6), state };
+    return { guesses, state };
   } catch {
-    return null;
+    return { guesses: [], state: 'playing' };
   }
+}
+
+function useSavedGameRaw(storageKey: string, enabled: boolean) {
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    if (typeof window === 'undefined') return () => {};
+    const handler = () => onStoreChange();
+    window.addEventListener('storage', handler);
+    window.addEventListener('cmcw-wordle:storage', handler as EventListener);
+    return () => {
+      window.removeEventListener('storage', handler);
+      window.removeEventListener('cmcw-wordle:storage', handler as EventListener);
+    };
+  }, []);
+
+  const getSnapshot = useCallback(() => {
+    if (!enabled) return '';
+    return window.localStorage.getItem(storageKey) ?? '';
+  }, [enabled, storageKey]);
+  const getServerSnapshot = useCallback(() => '', []);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+function writeSavedGame(storageKey: string, next: SavedSnapshot | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (next) window.localStorage.setItem(storageKey, JSON.stringify(next));
+    else window.localStorage.removeItem(storageKey);
+  } catch {
+    // ignore
+  }
+  window.dispatchEvent(new Event('cmcw-wordle:storage'));
 }
 
 function DayGame({
@@ -108,22 +144,43 @@ function DayGame({
   canPlay: boolean;
 }) {
   const storageKey = useMemo(() => `cmcw-wordle:v1:${todayKey}`, [todayKey]);
-  const saved = useMemo(() => (canPlay ? loadSaved(storageKey) : null), [canPlay, storageKey]);
-
-  const [guesses, setGuesses] = useState<string[]>(() => saved?.guesses ?? []);
+  const savedRaw = useSavedGameRaw(storageKey, canPlay);
+  const saved = useMemo(() => parseSavedRaw(savedRaw), [savedRaw]);
+  const guesses = saved.guesses;
+  const gameState = saved.state;
   const [current, setCurrent] = useState('');
-  const [state, setState] = useState<GameState>(() => saved?.state ?? 'playing');
   const [message, setMessage] = useState<string | null>(null);
   const messageTimerRef = useRef<number | null>(null);
+  const shakeTimeoutRef = useRef<number | null>(null);
+  const revealTimersRef = useRef<number[]>([]);
+  const popTimeoutRef = useRef<number | null>(null);
+  const popOutTimeoutRef = useRef<number | null>(null);
+  const danceTimeoutRef = useRef<number | null>(null);
+  const animIdRef = useRef(0);
+  const [shakeAnim, setShakeAnim] = useState<{ row: number; id: number } | null>(null);
+  const [popAnim, setPopAnim] = useState<{ row: number; col: number; id: number } | null>(null);
+  const [popOutAnim, setPopOutAnim] = useState<{ row: number; col: number; id: number } | null>(null);
+  const [danceAnim, setDanceAnim] = useState<{ row: number; id: number } | null>(null);
+  const [revealRow, setRevealRow] = useState<number | null>(null);
+  const [revealProgress, setRevealProgress] = useState(5);
+  const pendingOutcomeRef = useRef<{ outcome: GameState | null; answer: string } | null>(null);
+  const isRevealing = revealRow !== null;
+
+  const clearRevealTimers = () => {
+    for (const id of revealTimersRef.current) window.clearTimeout(id);
+    revealTimersRef.current = [];
+  };
 
   useEffect(() => {
-    if (!canPlay) return;
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify({ guesses, state }));
-    } catch {
-      // ignore
-    }
-  }, [canPlay, guesses, state, storageKey]);
+    return () => {
+      if (messageTimerRef.current) window.clearTimeout(messageTimerRef.current);
+      if (shakeTimeoutRef.current) window.clearTimeout(shakeTimeoutRef.current);
+      clearRevealTimers();
+      if (popTimeoutRef.current) window.clearTimeout(popTimeoutRef.current);
+      if (popOutTimeoutRef.current) window.clearTimeout(popOutTimeoutRef.current);
+      if (danceTimeoutRef.current) window.clearTimeout(danceTimeoutRef.current);
+    };
+  }, []);
 
   const setTimedMessage = useCallback((text: string) => {
     setMessage(text);
@@ -138,59 +195,123 @@ function DayGame({
     for (let i = 0; i < guesses.length; i++) {
       const guess = guesses[i];
       const scored = evaluatedGuesses[i];
-      for (let j = 0; j < 5; j++) {
+      let colsToApply = 5;
+      if (revealRow !== null) {
+        if (i < revealRow) colsToApply = 5;
+        else if (i === revealRow) colsToApply = Math.max(0, Math.min(5, revealProgress));
+        else colsToApply = 0;
+      }
+      for (let j = 0; j < colsToApply; j++) {
         const letter = guess[j];
         const next = scored[j];
         map.set(letter, betterLetterState(map.get(letter), next));
       }
     }
     return map;
-  }, [evaluatedGuesses, guesses]);
+  }, [evaluatedGuesses, guesses, revealProgress, revealRow]);
 
   const submitGuess = useCallback(() => {
     if (!canPlay) return;
-    if (state !== 'playing') return;
+    if (gameState !== 'playing') return;
+    if (isRevealing) return;
 
     const guess = current.toUpperCase();
     if (guess.length !== 5) {
+      const id = (animIdRef.current += 1);
+      setShakeAnim({ row: guesses.length, id });
+      if (shakeTimeoutRef.current) window.clearTimeout(shakeTimeoutRef.current);
+      shakeTimeoutRef.current = window.setTimeout(() => {
+        setShakeAnim((prev) => (prev?.id === id ? null : prev));
+      }, 520);
       setTimedMessage('Enter 5 letters.');
       return;
     }
 
     const nextGuesses = [...guesses, guess];
-    setGuesses(nextGuesses);
     setCurrent('');
 
-    if (guess === answer) {
-      setState('won');
-      setTimedMessage('Nice! You got it.');
-      return;
+    const rowIndex = nextGuesses.length - 1;
+    pendingOutcomeRef.current = {
+      outcome: guess === answer ? 'won' : nextGuesses.length >= 6 ? 'lost' : null,
+      answer,
+    };
+
+    writeSavedGame(storageKey, { guesses: nextGuesses, state: 'playing' });
+
+    clearRevealTimers();
+    setRevealRow(rowIndex);
+    setRevealProgress(0);
+
+    for (let i = 0; i < 5; i++) {
+      const t = window.setTimeout(() => {
+        setRevealProgress(i + 1);
+      }, i * 120 + 260);
+      revealTimersRef.current.push(t);
     }
 
-    if (nextGuesses.length >= 6) {
-      setState('lost');
-      setTimedMessage(`Answer: ${answer}`);
-    }
-  }, [answer, canPlay, current, guesses, setTimedMessage, state]);
+    const finish = window.setTimeout(() => {
+      setRevealProgress(5);
+      setRevealRow(null);
+
+      const pending = pendingOutcomeRef.current;
+      if (!pending?.outcome) return;
+
+      if (pending.outcome === 'won') {
+        writeSavedGame(storageKey, { guesses: nextGuesses, state: 'won' });
+        setTimedMessage('Nice! You got it.');
+        const id = (animIdRef.current += 1);
+        setDanceAnim({ row: rowIndex, id });
+        if (danceTimeoutRef.current) window.clearTimeout(danceTimeoutRef.current);
+        danceTimeoutRef.current = window.setTimeout(() => {
+          setDanceAnim((prev) => (prev?.id === id ? null : prev));
+        }, 1400);
+      } else if (pending.outcome === 'lost') {
+        writeSavedGame(storageKey, { guesses: nextGuesses, state: 'lost' });
+        setTimedMessage(`Answer: ${pending.answer}`);
+      }
+    }, 4 * 120 + 620);
+    revealTimersRef.current.push(finish);
+
+  }, [answer, canPlay, current, gameState, guesses, isRevealing, setTimedMessage, storageKey]);
 
   const handleKey = useCallback(
     (key: string) => {
       if (!canPlay) return;
-      if (state !== 'playing') return;
+      if (gameState !== 'playing') return;
+      if (isRevealing) return;
 
       if (key === 'ENTER') {
         submitGuess();
         return;
       }
       if (key === 'BACKSPACE') {
-        setCurrent((c) => c.slice(0, -1));
+        setCurrent((c) => {
+          if (c.length === 0) return c;
+          const id = (animIdRef.current += 1);
+          setPopOutAnim({ row: guesses.length, col: c.length - 1, id });
+          if (popOutTimeoutRef.current) window.clearTimeout(popOutTimeoutRef.current);
+          popOutTimeoutRef.current = window.setTimeout(() => {
+            setPopOutAnim((prev) => (prev?.id === id ? null : prev));
+          }, 160);
+          return c.slice(0, -1);
+        });
         return;
       }
       if (/^[A-Z]$/.test(key)) {
-        setCurrent((c) => (c.length >= 5 ? c : c + key));
+        setCurrent((c) => {
+          if (c.length >= 5) return c;
+          const next = c + key;
+          const id = (animIdRef.current += 1);
+          setPopAnim({ row: guesses.length, col: next.length - 1, id });
+          if (popTimeoutRef.current) window.clearTimeout(popTimeoutRef.current);
+          popTimeoutRef.current = window.setTimeout(() => {
+            setPopAnim((prev) => (prev?.id === id ? null : prev));
+          }, 160);
+          return next;
+        });
       }
     },
-    [canPlay, state, submitGuess],
+    [canPlay, gameState, guesses.length, isRevealing, submitGuess],
   );
 
   useEffect(() => {
@@ -213,19 +334,13 @@ function DayGame({
   }, [handleKey]);
 
   const resetToday = useCallback(() => {
-    try {
-      window.localStorage.removeItem(storageKey);
-    } catch {
-      // ignore
-    }
-    setGuesses([]);
     setCurrent('');
-    setState('playing');
     setMessage(null);
+    writeSavedGame(storageKey, null);
   }, [storageKey]);
 
   const copyShare = useCallback(async () => {
-    const tries = state === 'won' ? guesses.length : 'X';
+    const tries = gameState === 'won' ? guesses.length : 'X';
     const header = `CMCW Wordle ${dayNumber ?? '?'} / 5 — ${tries} / 6`;
     const grid = evaluatedGuesses.map((row) => row.map(emojiFor).join('')).join('\n');
     const text = `${header}\n${grid}\n(muircollegecouncil.org)`;
@@ -235,7 +350,7 @@ function DayGame({
     } catch {
       setTimedMessage('Copy failed.');
     }
-  }, [dayNumber, evaluatedGuesses, guesses.length, setTimedMessage, state]);
+  }, [dayNumber, evaluatedGuesses, gameState, guesses.length, setTimedMessage]);
 
   const keyboardRows = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 
@@ -252,28 +367,64 @@ function DayGame({
           <Button variant="outline" onClick={resetToday} disabled={!canPlay || guesses.length === 0}>
             Reset
           </Button>
-          <Button onClick={copyShare} disabled={!canPlay || (state !== 'won' && state !== 'lost')}>
+          <Button onClick={copyShare} disabled={!canPlay || (gameState !== 'won' && gameState !== 'lost')}>
             Share
           </Button>
         </div>
       </div>
 
+      <div className="min-h-6 text-sm text-gray-700">{message}</div>
+
       <div className="grid grid-rows-6 gap-2">
         {Array.from({ length: 6 }).map((_, rowIndex) => {
           const committedGuess = guesses[rowIndex];
-          const isActiveRow = rowIndex === guesses.length && state === 'playing';
+          const isActiveRow = rowIndex === guesses.length && gameState === 'playing';
           const rowText = committedGuess ?? (isActiveRow ? current : '');
           const letters = rowText.padEnd(5, ' ').slice(0, 5).split('');
+          const shakeId = shakeAnim?.row === rowIndex ? shakeAnim.id : 0;
+          const danceId = danceAnim?.row === rowIndex ? danceAnim.id : 0;
+          const isRevealRow = committedGuess && revealRow === rowIndex;
           const scored = committedGuess ? scoreGuess(committedGuess, answer) : null;
 
           return (
-            <div key={rowIndex} className="grid grid-cols-5 gap-2">
+            <div
+              key={`${rowIndex}-${shakeId}`}
+              className={`grid grid-cols-5 gap-2 ${shakeId ? 'wordle-row-shake' : ''}`}
+            >
               {letters.map((ch, i) => {
                 const tileState = scored ? scored[i] : null;
                 const display = ch === ' ' ? '' : ch;
+                const popId = popAnim?.row === rowIndex && popAnim.col === i ? popAnim.id : 0;
+                const popOutId = popOutAnim?.row === rowIndex && popOutAnim.col === i ? popOutAnim.id : 0;
+                const tileKey = `${rowIndex}-${i}-${popId}-${popOutId}-${danceId}`;
+                const flipDelay = isRevealRow ? `${i * 120}ms` : '0ms';
+                const danceDelay = `${i * 80}ms`;
+                const shouldFlip = !!committedGuess;
+                const wrapperClasses = [
+                  'w-12 h-12 sm:w-14 sm:h-14 wordle-tile-3d',
+                  shouldFlip ? 'wordle-tile-flipped' : '',
+                  popId ? 'wordle-tile-pop' : '',
+                  popOutId ? 'wordle-tile-pop-out' : '',
+                  danceId ? 'wordle-tile-dance' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ');
                 return (
-                  <div key={i} className={tileClasses(tileState)} aria-label={display || 'empty'}>
-                    {display}
+                  <div
+                    key={tileKey}
+                    className={wrapperClasses}
+                    style={
+                      ({
+                        ['--flip-delay' as string]: flipDelay,
+                        ['--dance-delay' as string]: danceDelay,
+                      } as CSSProperties)
+                    }
+                    aria-label={display || 'empty'}
+                  >
+                    <div className="wordle-tile-inner">
+                      <div className={tileFaceClasses(null)}>{display}</div>
+                      <div className={`${tileFaceClasses(tileState)} wordle-tile-back`}>{display}</div>
+                    </div>
                   </div>
                 );
               })}
@@ -281,8 +432,6 @@ function DayGame({
           );
         })}
       </div>
-
-      <div className="min-h-6 text-sm text-gray-700">{message}</div>
 
       <div className="w-full max-w-xl">
         <div className="space-y-2">
@@ -302,7 +451,7 @@ function DayGame({
                   key={k}
                   type="button"
                   onClick={() => handleKey(k)}
-                  disabled={!canPlay || state !== 'playing'}
+                  disabled={!canPlay || gameState !== 'playing' || isRevealing}
                   className={`h-11 w-9 sm:w-10 rounded-md text-sm font-semibold transition-colors disabled:opacity-60 ${cls}`}
                 >
                   {k}
@@ -326,7 +475,7 @@ function DayGame({
                   key={k}
                   type="button"
                   onClick={() => handleKey(k)}
-                  disabled={!canPlay || state !== 'playing'}
+                  disabled={!canPlay || gameState !== 'playing' || isRevealing}
                   className={`h-11 w-9 sm:w-10 rounded-md text-sm font-semibold transition-colors disabled:opacity-60 ${cls}`}
                 >
                   {k}
@@ -338,7 +487,7 @@ function DayGame({
             <button
               type="button"
               onClick={() => handleKey('ENTER')}
-              disabled={!canPlay || state !== 'playing'}
+              disabled={!canPlay || gameState !== 'playing' || isRevealing}
               className="h-11 px-3 rounded-md text-sm font-semibold bg-[#5D4A2F] text-white disabled:opacity-60"
             >
               Enter
@@ -358,7 +507,7 @@ function DayGame({
                   key={k}
                   type="button"
                   onClick={() => handleKey(k)}
-                  disabled={!canPlay || state !== 'playing'}
+                  disabled={!canPlay || gameState !== 'playing' || isRevealing}
                   className={`h-11 w-9 sm:w-10 rounded-md text-sm font-semibold transition-colors disabled:opacity-60 ${cls}`}
                 >
                   {k}
@@ -368,7 +517,7 @@ function DayGame({
             <button
               type="button"
               onClick={() => handleKey('BACKSPACE')}
-              disabled={!canPlay || state !== 'playing'}
+              disabled={!canPlay || gameState !== 'playing' || isRevealing}
               className="h-11 px-3 rounded-md text-sm font-semibold bg-[#5D4A2F] text-white disabled:opacity-60"
               aria-label="Backspace"
             >
