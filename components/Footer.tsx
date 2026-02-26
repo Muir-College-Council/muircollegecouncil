@@ -3,7 +3,7 @@ import { Instagram, Mail, MapPin } from 'lucide-react';
 
 const quickLinks = [
   { label: 'Request Funding', href: '#funding' },
-  { label: 'Agendas & Minutes', href: '#meetings' },
+  { label: 'Meeting Minutes', href: 'https://drive.google.com/drive/folders/14ViHVsRNWVGp86RESlEvIMbNywZbGC7g' },
   { label: 'Constitution', href: 'https://docs.google.com/document/d/1yW7dROyhdATU06eI6A5ebajDA1D8zssMhTnNUco4FDs/edit?tab=t.0#heading=h.qy6f6ljkjb7h' },
   { label: 'Accessibility & Resources', href: '#resources' },
 ];
@@ -88,8 +88,8 @@ export function Footer() {
             <div className="space-y-3">
               <div className="flex items-start space-x-3">
                 <Mail size={18} className="text-[#7CB342] mt-0.5 flex-shrink-0" />
-                <a href="mailto:mcc@ucsd.edu" className="text-green-100/80 hover:text-[#AED581] text-sm transition-colors">
-                  mcc@ucsd.edu
+                <a href="mailto:mccpresident@ucsd.edu" className="text-green-100/80 hover:text-[#AED581] text-sm transition-colors">
+                  mccpresident@ucsd.edu
                 </a>
               </div>
               <div className="flex items-start space-x-3">

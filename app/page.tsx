@@ -31,9 +31,9 @@ const actionCards = [
   },
   {
     icon: FileText,
-    title: 'View Agendas & Minutes',
-    description: 'Access meeting agendas, minutes, and council documents.',
-    href: '#meetings',
+    title: 'View Meeting Minutes',
+    description: 'Access meeting minutes (and agendas) plus council documents.',
+    href: 'https://drive.google.com/drive/folders/14ViHVsRNWVGp86RESlEvIMbNywZbGC7g',
     iconColor: '#7CB342',
     iconBgColor: '#E8F5E1',
   },
@@ -281,30 +281,26 @@ export default function HomePage() {
 
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-lg">
               <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="agendas" className="border-white/20">
-                  <AccordionTrigger className="text-white hover:text-[#AED581] hover:no-underline">
-                    Meeting Agendas
-                  </AccordionTrigger>
-                  <AccordionContent className="text-green-100">
-                    <p className="mb-4">
-                      View upcoming and past meeting agendas to see what topics will be discussed and decisions made.
-                    </p>
-                    <Button variant="outline" className="bg-white/10 text-white border-white/30 hover:bg-white/20 rounded-xl">
-                      View Agendas
-                    </Button>
-                  </AccordionContent>
-                </AccordionItem>
-
                 <AccordionItem value="minutes" className="border-white/20">
                   <AccordionTrigger className="text-white hover:text-[#AED581] hover:no-underline">
                     Meeting Minutes
                   </AccordionTrigger>
                   <AccordionContent className="text-green-100">
                     <p className="mb-4">
-                      Access official records of council meetings, including decisions, votes, and discussion summaries.
+                      Access official records of council meetings (minutes and agendas), including decisions, votes, and discussion summaries.
                     </p>
-                    <Button variant="outline" className="bg-white/10 text-white border-white/30 hover:bg-white/20 rounded-xl">
-                      View Minutes
+                    <Button
+                      variant="outline"
+                      className="bg-white/10 text-white border-white/30 hover:bg-white/20 rounded-xl"
+                      asChild
+                    >
+                      <a
+                        href="https://drive.google.com/drive/folders/14ViHVsRNWVGp86RESlEvIMbNywZbGC7g"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open Minutes Folder
+                      </a>
                     </Button>
                   </AccordionContent>
                 </AccordionItem>

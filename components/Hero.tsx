@@ -81,9 +81,9 @@ export function Hero() {
               className="bg-white/10 text-white border-2 border-white/30 hover:bg-white/20 text-lg px-8 py-6 rounded-2xl backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
               asChild
             >
-              <a href="#meetings">
+              <a href="https://drive.google.com/drive/folders/14ViHVsRNWVGp86RESlEvIMbNywZbGC7g" target="_blank" rel="noopener noreferrer">
                 <FileText className="mr-2" size={20} />
-                View Meeting Agendas
+                View Meeting Minutes
               </a>
             </Button>
           </div>
