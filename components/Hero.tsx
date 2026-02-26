@@ -1,6 +1,5 @@
 import { Button } from './ui/button';
 import { Calendar, FileText, Trees } from 'lucide-react';
-import Link from 'next/link';
 
 export function Hero() {
   return (

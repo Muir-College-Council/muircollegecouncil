@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
-import { Button } from './ui/button';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -26,24 +25,30 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-1">
-            <a href="/#about" className="px-4 py-2 text-gray-700 hover:text-[#8B6F47] hover:bg-[#FAF7F2] rounded-lg transition-colors">
+            <Link href="/#about" className="px-4 py-2 text-gray-700 hover:text-[#8B6F47] hover:bg-[#FAF7F2] rounded-lg transition-colors">
               About
-            </a>
-            <a href="/#meetings" className="px-4 py-2 text-gray-700 hover:text-[#8B6F47] hover:bg-[#FAF7F2] rounded-lg transition-colors">
+            </Link>
+            <Link href="/#meetings" className="px-4 py-2 text-gray-700 hover:text-[#8B6F47] hover:bg-[#FAF7F2] rounded-lg transition-colors">
               Meetings
-            </a>
-            <a href="/#get-involved" className="px-4 py-2 text-gray-700 hover:text-[#8B6F47] hover:bg-[#FAF7F2] rounded-lg transition-colors">
+            </Link>
+            <Link href="/#get-involved" className="px-4 py-2 text-gray-700 hover:text-[#8B6F47] hover:bg-[#FAF7F2] rounded-lg transition-colors">
               Get Involved
-            </a>
-            <a href="/#funding" className="px-4 py-2 text-gray-700 hover:text-[#8B6F47] hover:bg-[#FAF7F2] rounded-lg transition-colors">
+            </Link>
+            <Link href="/#funding" className="px-4 py-2 text-gray-700 hover:text-[#8B6F47] hover:bg-[#FAF7F2] rounded-lg transition-colors">
               Apply for Funding
-            </a>
-            <a
+            </Link>
+            <Link
+              href="/cmcw-wordle"
+              className="px-4 py-2 text-gray-700 hover:text-[#8B6F47] hover:bg-[#FAF7F2] rounded-lg transition-colors"
+            >
+              CMCW Wordle
+            </Link>
+            <Link
               href="/#events"
               className="ml-2 px-6 py-2 bg-[#7CB342] text-white rounded-lg hover:bg-[#689F38] transition-colors shadow-sm"
             >
               Events
-            </a>
+            </Link>
           </nav>
 
           {/* Mobile menu button */}
@@ -60,26 +65,33 @@ export function Header() {
       {isMenuOpen && (
         <div className="md:hidden border-t border-gray-200 bg-white">
           <nav className="px-4 py-4 space-y-2">
-            <a href="/#about" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base text-gray-700 hover:bg-[#E8F5E1] hover:text-[#2C5530]">
+            <Link href="/#about" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base text-gray-700 hover:bg-[#E8F5E1] hover:text-[#2C5530]">
               About
-            </a>
-            <a href="/#meetings" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base text-gray-700 hover:bg-[#E8F5E1] hover:text-[#2C5530]">
+            </Link>
+            <Link href="/#meetings" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base text-gray-700 hover:bg-[#E8F5E1] hover:text-[#2C5530]">
               Meetings
-            </a>
-            <a href="/#get-involved" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base text-gray-700 hover:bg-[#E8F5E1] hover:text-[#2C5530]">
+            </Link>
+            <Link href="/#get-involved" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base text-gray-700 hover:bg-[#E8F5E1] hover:text-[#2C5530]">
               Get Involved
-            </a>
-            <a href="/#funding" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base text-gray-700 hover:bg-[#E8F5E1] hover:text-[#2C5530]">
+            </Link>
+            <Link href="/#funding" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base text-gray-700 hover:bg-[#E8F5E1] hover:text-[#2C5530]">
               Apply for Funding
-            </a>
+            </Link>
+            <Link
+              href="/cmcw-wordle"
+              onClick={() => setIsMenuOpen(false)}
+              className="block px-3 py-2 rounded-md text-base text-gray-700 hover:bg-[#E8F5E1] hover:text-[#2C5530]"
+            >
+              CMCW Wordle
+            </Link>
             <div className="pt-4">
-              <a
+              <Link
                 href="/#events"
                 onClick={() => setIsMenuOpen(false)}
                 className="block w-full text-center px-6 py-2 bg-[#7CB342] text-white rounded-lg hover:bg-[#689F38] transition-colors shadow-sm"
               >
                 Events
-              </a>
+              </Link>
             </div>
           </nav>
         </div>

@@ -3,6 +3,7 @@ import { client } from "@/sanity/lib/client";
 import { PortableText } from "@portabletext/react";
 import Image from "next/image";
 import { urlFor } from "@/sanity/lib/image";
+import Link from "next/link";
 
 type Props = { params: { slug: string } };
 
@@ -23,7 +24,7 @@ export default async function EventDetailPage({ params }: Props) {
     return (
       <main className="space-y-6">
         <h1 className="text-2xl font-semibold">Event not found</h1>
-        <a className="text-blue-600 underline" href="/events">← Back to Events</a>
+        <Link className="text-blue-600 underline" href="/events">← Back to Events</Link>
       </main>
     );
   }
@@ -31,7 +32,7 @@ export default async function EventDetailPage({ params }: Props) {
   return (
     <main className="space-y-6">
       <nav className="text-sm">
-        <a className="text-blue-600 underline" href="/events">← Back to Events</a>
+        <Link className="text-blue-600 underline" href="/events">← Back to Events</Link>
       </nav>
 
       <header className="space-y-2">
