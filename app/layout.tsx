@@ -5,7 +5,9 @@ export const metadata: Metadata = {
   title: "Muir College Council",
   description: "The official student government body for Muir College at UC San Diego.",
   icons: {
-    icon: "/mcc-logo.jpg",
+    icon: [{ url: "/muir-logo.jpeg", type: "image/jpeg" }],
+    shortcut: [{ url: "/muir-logo.jpeg", type: "image/jpeg" }],
+    apple: [{ url: "/muir-logo.jpeg", type: "image/jpeg" }],
   },
 };
 
