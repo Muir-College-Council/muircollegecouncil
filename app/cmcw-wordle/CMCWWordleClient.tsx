@@ -123,6 +123,88 @@ function parseSavedRaw(raw: string | null): SavedSnapshot {
   }
 }
 
+type SavedSettings = { hardMode: boolean };
+
+function parseSettingsRaw(raw: string | null): SavedSettings {
+  if (!raw) return { hardMode: false };
+  try {
+    const parsed = JSON.parse(raw) as { hardMode?: unknown };
+    return { hardMode: parsed.hardMode === true };
+  } catch {
+    return { hardMode: false };
+  }
+}
+
+function writeSavedSettings(storageKey: string, next: SavedSettings | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (next) window.localStorage.setItem(storageKey, JSON.stringify(next));
+    else window.localStorage.removeItem(storageKey);
+  } catch {
+    // ignore
+  }
+  window.dispatchEvent(new Event('cmcw-wordle:storage'));
+}
+
+function nthPosition(n: number) {
+  if (n === 1) return '1st';
+  if (n === 2) return '2nd';
+  if (n === 3) return '3rd';
+  return `${n}th`;
+}
+
+type HardConstraints = {
+  greenPositions: Array<string | null>;
+  minCounts: Map<string, number>;
+};
+
+function buildHardConstraints(guesses: string[], evaluatedGuesses: TileState[][]): HardConstraints {
+  const greenPositions: Array<string | null> = Array.from({ length: 5 }, () => null);
+  const minCounts = new Map<string, number>();
+
+  for (let i = 0; i < guesses.length; i++) {
+    const guess = guesses[i];
+    const scored = evaluatedGuesses[i];
+    const perGuessCounts = new Map<string, number>();
+
+    for (let j = 0; j < 5; j++) {
+      const letter = guess[j];
+      const state = scored[j];
+      if (state === 'correct') greenPositions[j] = letter;
+      if (state === 'correct' || state === 'present') {
+        perGuessCounts.set(letter, (perGuessCounts.get(letter) ?? 0) + 1);
+      }
+    }
+
+    for (const [letter, count] of perGuessCounts.entries()) {
+      minCounts.set(letter, Math.max(minCounts.get(letter) ?? 0, count));
+    }
+  }
+
+  return { greenPositions, minCounts };
+}
+
+function validateHardModeGuess(guess: string, constraints: HardConstraints): string | null {
+  for (let i = 0; i < 5; i++) {
+    const required = constraints.greenPositions[i];
+    if (required && guess[i] !== required) {
+      return `Hard mode: ${nthPosition(i + 1)} letter must be ${required}.`;
+    }
+  }
+
+  for (const [letter, requiredCount] of constraints.minCounts.entries()) {
+    let countInGuess = 0;
+    for (const ch of guess) if (ch === letter) countInGuess += 1;
+    if (countInGuess < requiredCount) {
+      return requiredCount === 1
+        ? `Hard mode: guess must include ${letter}.`
+        : `Hard mode: guess must include ${letter} ${requiredCount} times.`;
+    }
+  }
+
+  return null;
+}
+
 function useSavedGameRaw(storageKey: string, enabled: boolean) {
   const subscribe = useCallback((onStoreChange: () => void) => {
     if (typeof window === 'undefined') return () => {};
@@ -167,6 +249,10 @@ function DayGame({
   canPlay: boolean;
 }) {
   const allowedWords = useMemo(() => buildAllowedWordsSet(validWords), []);
+  const settingsKey = useMemo(() => 'cmcw-wordle:settings', []);
+  const settingsRaw = useSavedGameRaw(settingsKey, true);
+  const settings = useMemo(() => parseSettingsRaw(settingsRaw), [settingsRaw]);
+  const hardModeEnabled = settings.hardMode;
   const storageKey = useMemo(() => `cmcw-wordle:v2:${todayKey}`, [todayKey]);
   const savedRaw = useSavedGameRaw(storageKey, canPlay);
   const saved = useMemo(() => parseSavedRaw(savedRaw), [savedRaw]);
@@ -223,6 +309,7 @@ function DayGame({
   }, []);
 
   const evaluatedGuesses = useMemo(() => guesses.map((g) => scoreGuess(g, answer)), [answer, guesses]);
+  const hardConstraints = useMemo(() => buildHardConstraints(guesses, evaluatedGuesses), [evaluatedGuesses, guesses]);
 
   const letterStates = useMemo(() => {
     const map = new Map<string, TileState>();
@@ -270,6 +357,20 @@ function DayGame({
       }, 520);
       setTimedMessage('Not in word list.');
       return;
+    }
+
+    if (hardModeEnabled && guesses.length > 0) {
+      const issue = validateHardModeGuess(guess, hardConstraints);
+      if (issue) {
+        const id = (animIdRef.current += 1);
+        setShakeAnim({ row: guesses.length, id });
+        if (shakeTimeoutRef.current) window.clearTimeout(shakeTimeoutRef.current);
+        shakeTimeoutRef.current = window.setTimeout(() => {
+          setShakeAnim((prev) => (prev?.id === id ? null : prev));
+        }, 520);
+        setTimedMessage(issue);
+        return;
+      }
     }
 
     const nextGuesses = [...guesses, guess];
@@ -327,7 +428,7 @@ function DayGame({
     }, 4 * 120 + 620);
     revealTimersRef.current.push(finish);
 
-  }, [allowedWords, answer, canPlay, current, gameState, guesses, isRevealing, setTimedMessage, storageKey, winPopup]);
+  }, [allowedWords, answer, canPlay, current, gameState, guesses, hardConstraints, hardModeEnabled, isRevealing, setTimedMessage, storageKey, winPopup]);
 
   const handleKey = useCallback(
     (key: string) => {
@@ -396,7 +497,8 @@ function DayGame({
 
   const copyShare = useCallback(async () => {
     const tries = gameState === 'won' ? guesses.length : 'X';
-    const header = `CMCW Wordle ${dayNumber ?? '?'} / 5 — ${tries} / 6`;
+    const mode = hardModeEnabled ? 'Hard Mode' : 'Normal Mode';
+    const header = `CMCW Wordle ${dayNumber ?? '?'} / 5 — ${tries} / 6 (${mode})`;
     const grid = evaluatedGuesses.map((row) => row.map(emojiFor).join('')).join('\n');
     const text = `${header}\n${grid}\n(muircollegecouncil.org)`;
     try {
@@ -405,7 +507,7 @@ function DayGame({
     } catch {
       setTimedMessage('Copy failed.');
     }
-  }, [dayNumber, evaluatedGuesses, gameState, guesses.length, setTimedMessage]);
+  }, [dayNumber, evaluatedGuesses, gameState, guesses.length, hardModeEnabled, setTimedMessage]);
 
   const keyboardRows = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 
@@ -425,9 +527,12 @@ function DayGame({
                 {resultPopupOutcome === 'won' ? (
                   <p className="text-sm text-gray-600 mt-1">
                     You got the word in <span className="font-semibold text-[#5D4A2F]">{resultPopupTries}</span> tries.
+                    <span className="ml-1">({hardModeEnabled ? 'Hard Mode' : 'Normal Mode'})</span>
                   </p>
                 ) : resultPopupOutcome === 'lost' ? (
-                  <p className="text-sm text-gray-600 mt-1">Maybe next time!</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Maybe next time! <span className="ml-1">({hardModeEnabled ? 'Hard Mode' : 'Normal Mode'})</span>
+                  </p>
                 ) : (
                   <p className="text-sm text-gray-500 mt-1">{todayKey}</p>
                 )}
@@ -475,6 +580,19 @@ function DayGame({
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={resetToday} disabled={!canPlay || guesses.length === 0}>
             Reset
+          </Button>
+          <Button
+            variant={hardModeEnabled ? 'default' : 'outline'}
+            onClick={() => {
+              if (guesses.length > 0) return;
+              writeSavedSettings(settingsKey, { hardMode: !hardModeEnabled });
+              setTimedMessage(!hardModeEnabled ? 'Hard mode on.' : 'Hard mode off.');
+            }}
+            disabled={!canPlay || guesses.length > 0}
+            aria-pressed={hardModeEnabled}
+            title={guesses.length > 0 ? 'Hard mode can only be changed before your first guess.' : 'Toggle hard mode.'}
+          >
+            Hard Mode
           </Button>
           <Button onClick={copyShare} disabled={!canPlay || (gameState !== 'won' && gameState !== 'lost')}>
             Share
