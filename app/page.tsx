@@ -67,36 +67,6 @@ type HomeEventCard = {
   flyerUrls?: string[];
 };
 
-const fallbackEvents: HomeEventCard[] = [
-  {
-    title: 'MCC General Meeting',
-    date: 'Friday, December 13, 2024',
-    time: '5:00 PM - 6:30 PM',
-    location: 'Muir College Room 201',
-    description: 'Join us for our bi-weekly general meeting to discuss upcoming initiatives and vote on funding requests.',
-    tag: 'Council Meeting',
-    tagColor: 'green',
-  },
-  {
-    title: 'Winter Wonderland Social',
-    date: 'Tuesday, December 17, 2024',
-    time: '6:00 PM - 8:00 PM',
-    location: 'Muir Quad',
-    description: 'Celebrate the end of fall quarter with food, music, and festive activities. Free for all Muir students!',
-    tag: 'Social',
-    tagColor: 'green',
-  },
-  {
-    title: 'Leadership Workshop',
-    date: 'Monday, January 8, 2025',
-    time: '4:00 PM - 5:30 PM',
-    location: 'Virtual (Zoom)',
-    description: 'Learn about leadership opportunities within MCC and how to get involved in student government.',
-    tag: 'Workshop',
-    tagColor: 'green',
-  },
-];
-
 type GCalEvent = {
   id: string;
   title: string;
@@ -241,7 +211,7 @@ function MembersCarousel() {
 }
 
 export default function HomePage() {
-  const [events, setEvents] = useState<HomeEventCard[]>(fallbackEvents);
+  const [events, setEvents] = useState<HomeEventCard[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -265,7 +235,7 @@ export default function HomePage() {
             flyerUrls: e.flyerUrls,
           };
         });
-        if (!cancelled && mapped.length > 0) setEvents(mapped);
+        if (!cancelled) setEvents(mapped);
       } catch {
         // ignore
       }
@@ -332,11 +302,13 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-            {events.map((event, index) => (
-              <EventCard key={index} {...event} />
-            ))}
-          </div>
+          {events.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+              {events.map((event, index) => (
+                <EventCard key={index} {...event} />
+              ))}
+            </div>
+          )}
 
           <div className="text-center">
             <Button
