@@ -3,6 +3,7 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import {
+  CMCW_DAILY_BY_DATE,
   CMCW_WORDLE_END_DATE,
   CMCW_WORDLE_START_DATE,
   CMCW_WORDLE_TIME_ZONE,
@@ -143,7 +144,7 @@ function DayGame({
   answer: string;
   canPlay: boolean;
 }) {
-  const storageKey = useMemo(() => `cmcw-wordle:v1:${todayKey}`, [todayKey]);
+  const storageKey = useMemo(() => `cmcw-wordle:v2:${todayKey}`, [todayKey]);
   const savedRaw = useSavedGameRaw(storageKey, canPlay);
   const saved = useMemo(() => parseSavedRaw(savedRaw), [savedRaw]);
   const guesses = saved.guesses;
@@ -165,6 +166,8 @@ function DayGame({
   const [revealProgress, setRevealProgress] = useState(5);
   const pendingOutcomeRef = useRef<{ outcome: GameState | null; answer: string } | null>(null);
   const isRevealing = revealRow !== null;
+  const [isWinPopupOpen, setIsWinPopupOpen] = useState(false);
+  const winPopup = CMCW_DAILY_BY_DATE[todayKey] ?? null;
 
   const clearRevealTimers = () => {
     for (const id of revealTimersRef.current) window.clearTimeout(id);
@@ -181,6 +184,10 @@ function DayGame({
       if (danceTimeoutRef.current) window.clearTimeout(danceTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    setIsWinPopupOpen(false);
+  }, [storageKey]);
 
   const setTimedMessage = useCallback((text: string) => {
     setMessage(text);
@@ -259,6 +266,7 @@ function DayGame({
       if (pending.outcome === 'won') {
         writeSavedGame(storageKey, { guesses: nextGuesses, state: 'won' });
         setTimedMessage('Nice! You got it.');
+        if (winPopup) setIsWinPopupOpen(true);
         const id = (animIdRef.current += 1);
         setDanceAnim({ row: rowIndex, id });
         if (danceTimeoutRef.current) window.clearTimeout(danceTimeoutRef.current);
@@ -272,7 +280,7 @@ function DayGame({
     }, 4 * 120 + 620);
     revealTimersRef.current.push(finish);
 
-  }, [answer, canPlay, current, gameState, guesses, isRevealing, setTimedMessage, storageKey]);
+  }, [answer, canPlay, current, gameState, guesses, isRevealing, setTimedMessage, storageKey, winPopup]);
 
   const handleKey = useCallback(
     (key: string) => {
@@ -356,6 +364,44 @@ function DayGame({
 
   return (
     <div className="flex flex-col items-center gap-5">
+      {isWinPopupOpen && winPopup && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="CMCW Wordle message"
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-white border border-[#E8E6E1] shadow-xl p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-[#5D4A2F]">CMCW</h2>
+                <p className="text-sm text-gray-500 mt-1">{todayKey}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsWinPopupOpen(false)}
+                className="text-gray-500 hover:text-gray-700 rounded-md px-2 py-1"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 text-gray-700 whitespace-pre-line">{winPopup.winPopupBody.trimEnd()}</div>
+
+            <div className="mt-5 flex flex-wrap gap-3 justify-end">
+              <Button variant="outline" onClick={() => setIsWinPopupOpen(false)}>
+                Close
+              </Button>
+              <Button asChild>
+                <a href={winPopup.moreInfoUrl} target="_blank" rel="noopener noreferrer">
+                  Open {winPopup.moreInfoHandle}
+                </a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="w-full flex items-center justify-between">
         <div className="text-sm text-gray-600">
           <span>
